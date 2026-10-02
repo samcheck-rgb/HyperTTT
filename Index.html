@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Hyper Tic-Tac-Toe</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #171c24; --panel-2: #1e2530; --line: #2a3342;
+    --text: #e8edf4; --dim: #8b96a6; --x: #4cc2ff; --o: #ffb020; --win: #3ddc84; --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 50% -10%, #1a2230 0%, var(--bg) 60%) fixed var(--bg);
+    color: var(--text); font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: max(20px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+             max(40px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  h1 { font-size: clamp(22px, 6vw, 34px); letter-spacing: 2px; text-transform: uppercase; font-weight: 800; text-align: center; line-height: 1.15; }
+  h1 .hx { color: var(--x); } h1 .ho { color: var(--o); }
+  .subtitle { color: var(--dim); font-size: 13px; margin-top: 6px; text-align: center; max-width: 460px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; width: min(100%, 520px); }
+  #setup { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+  #setup h2, #rules h2 { color: var(--text); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  .player-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .player-row label { flex: 0 0 96px; font-size: 13px; color: var(--dim); }
+  input[type=text], input[type=password] {
+    width: 100%; min-width: 0; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 16px; /* 16px stops iOS zoom-on-focus */
+  }
+  .player-row input[type=text] { flex: 1 1 140px; width: auto; }
+  input:disabled { opacity: .6; cursor: not-allowed; }
+  .player-row input[type=color] { width: 44px; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 2px; cursor: pointer; flex: 0 0 44px; }
+  .opt-group { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .opt-group .label { color: var(--dim); }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button { flex: 1 1 110px; }
+  .seg button.on { border-color: var(--win); background: #233a2e; }
+  .hint { font-size: 12px; color: var(--dim); line-height: 1.45; }
+  .error { font-size: 13px; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); padding: 8px 10px; border-radius: 8px; }
+
+  #ai-opts { display: flex; flex-direction: column; gap: 14px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+  details { font-size: 13px; }
+  summary { cursor: pointer; color: var(--text); font-weight: 600; padding: 4px 0; }
+  .gw-fields { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; color: var(--dim); font-size: 12px; }
+
+  #game { flex-direction: column; align-items: center; width: 100%; }
+  #game:not([hidden]) { display: flex; }
+  #status { margin: 14px 0 12px; font-size: 17px; font-weight: 600; min-height: 26px; text-align: center; max-width: 520px; }
+  #status .note { display: block; font-size: 12px; color: var(--dim); font-weight: 400; margin-top: 3px; line-height: 1.4; }
+  #status .note.warn { color: var(--o); }
+  .dots::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.2s steps(4, end) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+  #big-board {
+    --gap: clamp(5px, 1.8vw, 10px);
+    container-type: inline-size;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: var(--gap); padding: var(--gap);
+    width: min(100%, 560px, max(290px, calc(100vh - 330px)));
+    width: min(100%, 560px, max(290px, calc(100dvh - 330px)));
+    aspect-ratio: 1;
+    background: var(--panel); border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .small-board {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 1.2cqw; padding: 1.4cqw; aspect-ratio: 1; min-width: 0;
+    background: var(--panel-2); border: 2px solid var(--line); border-radius: 2.2cqw; position: relative;
+    transition: border-color .2s, box-shadow .2s, background .2s, opacity .3s;
+  }
+  .small-board.active { border-color: var(--pc); box-shadow: 0 0 14px color-mix(in srgb, var(--pc) 40%, transparent); background: color-mix(in srgb, var(--pc) 10%, var(--panel-2)); }
+  .small-board.won-x { border-color: var(--x); } .small-board.won-o { border-color: var(--o); }
+  .small-board.dead { opacity: .6; }
+  .small-board.line { box-shadow: 0 0 0 2px var(--win), 0 0 18px color-mix(in srgb, var(--win) 55%, transparent); }
+  .small-board.hidden { visibility: hidden; }
+
+  .cell {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 1.2cqw; cursor: default;
+    font: inherit; font-size: 4.8cqw; font-weight: 800; line-height: 1; padding: 0; min-width: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text); transition: background .12s, transform .12s; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .cell.can { cursor: pointer; color: var(--pc); }
+  .cell.can::before { content: attr(data-p); opacity: 0; transition: opacity .12s; }
+  @media (hover: hover) {
+    .cell.can:hover { background: #232c3a; transform: scale(1.06); }
+    .cell.can:hover::before { opacity: .35; }
+  }
+  .cell.taken { color: var(--text); }
+  .cell.x { color: var(--x); } .cell.o { color: var(--o); }
+  .cell.wc { background: color-mix(in srgb, currentColor 18%, var(--bg)); }
+  .cell.last { outline: 2px solid var(--win); outline-offset: -2px; }
+
+  .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    font-size: 21cqw; font-weight: 900; border-radius: 1.6cqw; pointer-events: none; }
+  .small-board.won-x .overlay, .small-board.won-o .overlay, .small-board.dead .overlay { display: flex; }
+  .small-board.won-x .overlay { color: var(--x); background: color-mix(in srgb, var(--x) 14%, transparent); }
+  .small-board.won-o .overlay { color: var(--o); background: color-mix(in srgb, var(--o) 14%, transparent); }
+  .small-board.dead .overlay { color: var(--dim); font-size: 10cqw; background: rgba(0,0,0,.35); }
+
+  #ai-bar { margin-top: 16px; width: min(100%, 520px); display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  #ai-bar .label { font-size: 12px; color: var(--dim); }
+  #controls { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button.btn {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 18px; min-height: 44px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s, border-color .15s; touch-action: manipulation;
+  }
+  @media (hover: hover) { button.btn:hover:not(:disabled) { background: #283242; border-color: #3a4658; } }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  button.btn.primary { background: var(--win); color: #0e1116; border-color: var(--win); }
+
+  #scoreboard { display: flex; gap: 8px 20px; margin-top: 16px; font-size: 14px; color: var(--dim); flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  #scoreboard > span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+  #scoreboard b { font-size: 18px; }
+  #score-x b { color: var(--x); } #score-o b { color: var(--o); }
+
+  #rules { margin-top: 28px; font-size: 13px; color: var(--dim); line-height: 1.6; }
+  #rules h2 { margin-bottom: 8px; }
+  #rules li { margin-left: 18px; }
+
+  /* Landscape phones: board on the left, controls on the right */
+  @media (orientation: landscape) and (max-height: 560px) {
+    body { padding-top: max(8px, env(safe-area-inset-top)); }
+    body.playing h1, body.playing .subtitle { display: none; }
+    #game:not([hidden]) {
+      display: grid; grid-template-columns: auto minmax(220px, 1fr); grid-template-rows: auto auto auto auto 1fr;
+      column-gap: 20px; justify-content: center; align-items: start; max-width: 900px;
+    }
+    #big-board { grid-column: 1; grid-row: 1 / span 5; width: min(calc(100vh - 20px), 58vw); width: min(calc(100dvh - 20px), 58vw); }
+    #status { grid-column: 2; grid-row: 1; margin-top: 4px; }
+    #ai-bar { grid-column: 2; grid-row: 2; margin-top: 4px; justify-self: center; }
+    #controls { grid-column: 2; grid-row: 3; margin-top: 10px; }
+    #scoreboard { grid-column: 2; grid-row: 4; margin-top: 10px; justify-self: center; }
+  }
+  @media (max-width: 380px) {
+    .panel { padding: 14px 12px; }
+    button.btn { padding: 10px 12px; }
+    .player-row label { flex-basis: 100%; }
+  }
+  .net-box { display:flex; flex-direction:column; gap:10px; padding:12px; border:1px dashed var(--line); border-radius:10px; }
+  .net-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .net-row input { flex:1 1 150px; }
+  .room-code { font-size:clamp(22px,7vw,34px); font-weight:900; letter-spacing:.18em; color:var(--win); text-align:center; }
+  .rooms { display:grid; gap:7px; }
+  .room { display:flex; gap:8px; align-items:center; justify-content:space-between; padding:9px; background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+  .room span { min-width:0; overflow-wrap:anywhere; }
+  #net-status { min-height:18px; }
+  @media (min-width: 900px) {
+    #setup { width:min(100%, 820px); display:grid; grid-template-columns:1fr 1fr; align-items:start; }
+    #setup > h2, #setup > #setup-error, #setup > #start { grid-column:1 / -1; }
+    #setup > #multiplayer-box { grid-column:1 / -1; }
+    #start { width:min(100%,360px); justify-self:center; }
+  }
+  @media (max-width: 600px) {
+    body { padding-left:max(8px,env(safe-area-inset-left)); padding-right:max(8px,env(safe-area-inset-right)); }
+    #setup { margin-top:12px; } .panel { border-radius:10px; }
+    .seg { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .seg button { min-width:0; }
+    #controls { width:100%; } #controls .btn { flex:1 1 135px; }
+    #big-board { width:min(100%, calc(100dvh - 285px)); min-width:0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+  <h1><span class="hx">Hyper</span> Tic<span class="ho">-</span>Tac<span class="ho">-</span>Toe</h1>
+  <p class="subtitle">Nine boards. One war. Your move sends your opponent to a board.</p>
+
+  <div id="setup" class="panel">
+    <h2>Players</h2>
+    <div class="player-row">
+      <label for="name-x">Player 1 (X)</label>
+      <input type="text" id="name-x" value="Player 1" maxlength="16" autocomplete="off" />
+      <input type="color" id="color-x" value="#4cc2ff" aria-label="Player 1 color" />
+    </div>
+    <div class="player-row">
+      <label for="name-o">Player 2 (O)</label>
+      <input type="text" id="name-o" value="Player 2" maxlength="16" autocomplete="off" />
+      <input type="color" id="color-o" value="#ffb020" aria-label="Player 2 color" />
+    </div>
+
+    <div class="opt-group">
+      <span class="label">Opponent</span>
+      <div class="seg" id="opp-seg">
+        <button type="button" class="btn on" data-v="human">Two players</button>
+        <button type="button" class="btn" data-v="ai">Play vs AI</button>
+        <button type="button" class="btn" data-v="multi">Multiplayer (LAN)</button>
+      </div>
+    </div>
+
+    <div id="ai-opts" hidden>
+      <div class="opt-group">
+        <span class="label">You play as</span>
+        <div class="seg" id="side-seg">
+          <button type="button" class="btn on" data-v="X">X (moves first)</button>
+          <button type="button" class="btn" data-v="O">O (moves second)</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <span class="label">AI difficulty</span>
+        <div class="seg" id="diff-seg">
+          <button type="button" class="btn" data-v="easy">Easy</button>
+          <button type="button" class="btn on" data-v="medium">Medium</button>
+          <button type="button" class="btn" data-v="hard">Hard</button>
+        </div>
+        <span class="hint" id="diff-hint"></span>
+      </div>
+      <details id="gw">
+        <summary>AI Gateway settings</summary>
+        <div class="gw-fields">
+          <label class="field">API key
+            <input type="password" id="gw-key" autocomplete="off" spellcheck="false" placeholder="AI Gateway API key" />
+          </label>
+          <label class="field">Base URL
+            <input type="text" id="gw-base" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="field">Easy model
+            <input type="text" id="gw-model-easy" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="field">Medium model
+            <input type="text" id="gw-model-medium" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="field">Hard model
+            <input type="text" id="gw-model-hard" autocomplete="off" spellcheck="false" />
+          </label>
+          <span class="hint">The key is kept only in this browser tab (session storage) and sent only to the Base URL above. A key in a web page can be read by anyone using that page, so for a public site point the Base URL at your own proxy that adds the key server-side. Model IDs use the gateway's <code>creator/model</code> format.</span>
+        </div>
+      </details>
+    </div>
+
+    <div class="opt-group">
+      <span class="label">Mode</span>
+      <div class="seg" id="mode-seg">
+        <button type="button" class="btn on" data-v="classic">Classic</button>
+        <button type="button" class="btn" data-v="memory">Memory</button>
+        <button type="button" class="btn" data-v="blindfold">Blindfold</button>
+      </div>
+      <span class="hint" id="mode-hint"></span>
+    </div>
+
+    <div id="multiplayer-box" class="net-box" hidden>
+      <div class="opt-group"><span class="label">LAN multiplayer</span>
+        <span class="hint">One device runs hyper-server.js. Everyone on the same Wi-Fi/LAN opens that device's address. The host chooses the rules.</span></div>
+      <div class="net-row">
+        <button type="button" class="btn primary" id="host-game">Host a game</button>
+        <input type="text" id="join-code" maxlength="8" autocomplete="off" spellcheck="false" placeholder="Room code" aria-label="Room code" />
+        <button type="button" class="btn" id="join-game">Join code</button>
+        <button type="button" class="btn" id="refresh-rooms">Find LAN games</button>
+      </div>
+      <div id="room-code" class="room-code" hidden></div>
+      <div id="net-status" class="hint" aria-live="polite"></div>
+      <div id="room-list" class="rooms"></div>
+    </div>
+
+    <div class="opt-group">
+      <span class="label">Win condition</span>
+      <div class="seg" id="win-seg">
+        <button type="button" class="btn on" data-v="one">First small board</button>
+        <button type="button" class="btn" data-v="three">Three in a row</button>
+      </div>
+      <span class="hint" id="win-hint"></span>
+    </div>
+
+    <p class="error" id="setup-error" role="alert" hidden></p>
+    <button type="button" class="btn primary" id="start">Start Game</button>
+  </div>
+
+  <div id="game" hidden>
+    <div id="status" aria-live="polite"></div>
+    <div id="big-board" role="group" aria-label="Game board"></div>
+    <div id="ai-bar" hidden>
+      <span class="label">AI difficulty (applies to the AI's next move)</span>
+      <div class="seg" id="live-diff">
+        <button type="button" class="btn" data-v="easy">Easy</button>
+        <button type="button" class="btn" data-v="medium">Medium</button>
+        <button type="button" class="btn" data-v="hard">Hard</button>
+      </div>
+      <span class="hint" id="ai-meta"></span>
+    </div>
+    <div id="controls">
+      <button type="button" class="btn" id="restart">Restart Game</button>
+      <button type="button" class="btn" id="peek" hidden>Peek</button>
+      <button type="button" class="btn" id="reset-score">Reset Score</button>
+      <button type="button" class="btn" id="settings">Change Settings</button>
+    </div>
+    <div id="scoreboard">
+      <span id="score-x"><span class="nm"></span>: <b>0</b></span>
+      <span id="score-d">Draws: <b>0</b></span>
+      <span id="score-o"><span class="nm"></span>: <b>0</b></span>
+    </div>
+  </div>
+
+  <div id="rules" class="panel">
+    <h2>How to play</h2>
+    <ul>
+      <li>The big 3×3 grid contains nine small 3×3 boards.</li>
+      <li>Wherever you play inside a small board decides where your opponent must play next — e.g. playing top-right sends them to the top-right board.</li>
+      <li>If that target board is already won or full, your opponent may play anywhere.</li>
+      <li><b>First small board:</b> the first player to win any small board wins the game.</li>
+      <li><b>Three in a row:</b> win three small boards in a row on the big board.</li>
+      <li><b>Memory mode:</b> only the board you must play on is visible. Each player can peek at every board twice per game.</li>
+      <li><b>Blindfold (multiplayer only):</b> occupied cells are hidden; only the previous move is revealed with a highlight. You still choose from legal empty positions.</li>
+      <li><b>LAN multiplayer:</b> run <code>node hyper-server.js</code> on one device, then friends on the same network open its LAN address and host/join a room.</li>
+      <li><b>Play vs AI:</b> an AI Gateway model studies the board and picks a legal move. Harder levels use stronger models and more tactical analysis. You can change difficulty at any time.</li>
+    </ul>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- constants & state ---------- */
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  var DEFAULT_BASE = 'https://ai-gateway.vercel.sh/v1';
+  var DEFAULT_MODELS = { easy: 'anthropic/claude-haiku-4.5', medium: 'anthropic/claude-sonnet-4.5', hard: 'anthropic/claude-opus-5' };
+  var DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  var DIFF_TEMP = { easy: 1, medium: 0.5, hard: 0.1 };
+  var DIFF_NOISE = { easy: 90, medium: 25, hard: 4 };   // randomness in the offline fallback
+  var REQUEST_TIMEOUT_MS = 30000;
+  var PEEK_MS = 2500, PEEKS_PER_PLAYER = 2;
+
+  var S;                       // { boards, boardState, forced, current }
+  var boardLines, bigLine, gameOver, result, lastMove, peeking, peeks, peekTimer;
+  var aiThinking = false, aiCtl = null, aiNote = null, gameToken = 0;
+  var scores = { X: 0, O: 0, D: 0 };
+  var settings = { mode: 'classic', win: 'one', opp: 'human', side: 'X', diff: 'medium' };
+  var ws = null, netRole = null, netCode = '', netReady = false, netStarting = false, localSide = null;
+  var names = { X: 'Player 1', O: 'Player 2' };
+  var colors = { X: '#4cc2ff', O: '#ffb020' };
+  var typed = { X: 'Player 1', O: 'Player 2' };
+  var cfg = { key: '', base: DEFAULT_BASE, models: { easy: DEFAULT_MODELS.easy, medium: DEFAULT_MODELS.medium, hard: DEFAULT_MODELS.hard } };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var bigBoardEl = $('big-board'), statusEl = $('status');
+
+  var hints = {
+    classic: 'All boards are always visible.',
+    memory: 'Only the board you must play on is visible. Each player can peek at every board twice per game.',
+    blindfold: 'Multiplayer only: all marks stay hidden except the immediately previous move.',
+    one: 'Game ends as soon as any small board is won.',
+    three: 'Win three small boards in a row to win.',
+    easy: 'A fast, small model playing casually. It misses threats and makes mistakes.',
+    medium: 'A balanced model that is told about immediate wins and blocks.',
+    hard: 'The strongest model, given a full tactical analysis of every legal move.'
+  };
+
+  /* ---------- storage (best effort) ---------- */
+  function loadCfg() {
+    try {
+      var raw = sessionStorage.getItem('htt-ai-cfg');
+      if (!raw) return;
+      var c = JSON.parse(raw);
+      if (typeof c.key === 'string') cfg.key = c.key;
+      if (typeof c.base === 'string' && c.base) cfg.base = c.base;
+      if (c.models) ['easy', 'medium', 'hard'].forEach(function (d) { if (typeof c.models[d] === 'string' && c.models[d]) cfg.models[d] = c.models[d]; });
+    } catch (e) { /* storage unavailable */ }
+  }
+  function saveCfg() { try { sessionStorage.setItem('htt-ai-cfg', JSON.stringify(cfg)); } catch (e) { /* ignore */ } }
+
+  /* ---------- helpers ---------- */
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+  function other(p) { return p === 'X' ? 'O' : 'X'; }
+  function aiSide() { return other(settings.side); }
+
+  /* ---------- setup UI ---------- */
+  function setSeg(id, v) {
+    $(id).querySelectorAll('button').forEach(function (b) {
+      var on = b.dataset.v === v;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function bindSeg(id, onPick) {
+    $(id).querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () { onPick(b.dataset.v); });
+    });
+  }
+  function syncSetup() {
+    var ai = settings.opp === 'ai', multi = settings.opp === 'multi';
+    $('ai-opts').hidden = !ai;
+    $('multiplayer-box').hidden = !multi;
+    var blindBtn = $('mode-seg').querySelector('[data-v=blindfold]');
+    blindBtn.disabled = !multi;
+    if (!multi && settings.mode === 'blindfold') settings.mode = 'classic';
+    ['X', 'O'].forEach(function (p) {
+      var inp = $('name-' + p.toLowerCase());
+      var isAI = ai && p !== settings.side;
+      inp.disabled = isAI;
+      inp.value = isAI ? 'AI' : typed[p];
+    });
+    setSeg('opp-seg', settings.opp); setSeg('side-seg', settings.side); setSeg('diff-seg', settings.diff);
+    setSeg('mode-seg', settings.mode); setSeg('win-seg', settings.win);
+    $('mode-hint').textContent = hints[settings.mode];
+    $('win-hint').textContent = hints[settings.win];
+    $('diff-hint').textContent = hints[settings.diff];
+  }
+  bindSeg('mode-seg', function (v) { settings.mode = v; syncSetup(); });
+  bindSeg('win-seg', function (v) { settings.win = v; syncSetup(); });
+  bindSeg('opp-seg', function (v) { settings.opp = v; syncSetup(); });
+  bindSeg('side-seg', function (v) {
+    if (v !== settings.side) typed[v] = typed[settings.side];   // carry the human's name across
+    settings.side = v; syncSetup();
+  });
+  bindSeg('diff-seg', function (v) { settings.diff = v; syncSetup(); });
+  ['x', 'o'].forEach(function (k) {
+    $('name-' + k).addEventListener('input', function (e) { if (!e.target.disabled) typed[k.toUpperCase()] = e.target.value; });
+  });
+
+  function fillGatewayFields() {
+    $('gw-key').value = cfg.key;
+    $('gw-base').value = cfg.base;
+    ['easy', 'medium', 'hard'].forEach(function (d) { $('gw-model-' + d).value = cfg.models[d]; });
+  }
+  function readGatewayFields() {
+    cfg.key = $('gw-key').value.trim();
+    cfg.base = $('gw-base').value.trim() || DEFAULT_BASE;
+    ['easy', 'medium', 'hard'].forEach(function (d) { cfg.models[d] = $('gw-model-' + d).value.trim() || DEFAULT_MODELS[d]; });
+  }
+
+  function showSetupError(msg) {
+    var el = $('setup-error');
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  }
+  function colorDistance(a, b) {
+    var pa = [1, 3, 5].map(function (i) { return parseInt(a.substr(i, 2), 16); });
+    var pb = [1, 3, 5].map(function (i) { return parseInt(b.substr(i, 2), 16); });
+    return Math.sqrt(pa.reduce(function (s, v, i) { return s + Math.pow(v - pb[i], 2); }, 0));
+  }
+
+  /* ---------- pure game logic ---------- */
+  function winnerLine(cells) {
+    for (var i = 0; i < LINES.length; i++) {
+      var a = LINES[i][0], b = LINES[i][1], c = LINES[i][2];
+      if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) return LINES[i];
+    }
+    return null;
+  }
+  function winnerOf(cells) { var l = winnerLine(cells); return l ? cells[l[0]] : ''; }
+  function isFull(cells) { return cells.every(function (v) { return !!v; }); }
+  function bigCells(boardState) { return boardState.map(function (s) { return s === 'D' ? '' : s; }); }
+  function bigWinnerOf(boardState) {
+    if (settings.win === 'one') {
+      for (var i = 0; i < 9; i++) if (boardState[i] === 'X' || boardState[i] === 'O') return boardState[i];
+      return '';
+    }
+    return winnerOf(bigCells(boardState));
+  }
+  function newState() {
+    var boards = [];
+    for (var i = 0; i < 9; i++) boards.push(['','','','','','','','','']);
+    return { boards: boards, boardState: ['','','','','','','','',''], forced: -1, current: 'X' };
+  }
+  function cloneState(s) {
+    return { boards: s.boards.map(function (r) { return r.slice(); }), boardState: s.boardState.slice(), forced: s.forced, current: s.current };
+  }
+  function legalMoves(s) {
+    var out = [];
+    for (var b = 0; b < 9; b++) {
+      if (s.boardState[b]) continue;
+      if (s.forced !== -1 && b !== s.forced) continue;
+      for (var c = 0; c < 9; c++) if (!s.boards[b][c]) out.push({ b: b, c: c });
+    }
+    return out;
+  }
+  // Applies a move for s.current (mutates s). Returns { boardWon, winner, over }.
+  function play(s, b, c) {
+    var p = s.current;
+    s.boards[b][c] = p;
+    var w = winnerOf(s.boards[b]);
+    if (w) s.boardState[b] = w; else if (isFull(s.boards[b])) s.boardState[b] = 'D';
+    var winner = bigWinnerOf(s.boardState);
+    var over = !!winner || s.boardState.every(function (v) { return !!v; });
+    if (!over) {
+      s.forced = s.boardState[c] ? -1 : c;
+      s.current = other(p);
+    }
+    return { boardWon: w, winner: winner, over: over };
+  }
+
+  /* ---------- tactical analysis (used in AI prompts and as the offline fallback) ---------- */
+  function analyze(s, b, c) {
+    var me = s.current, opp = other(me);
+    var tmp = s.boards[b].slice(); tmp[c] = opp;
+    var blocks = winnerOf(tmp) === opp;
+    var sim = cloneState(s);
+    var r = play(sim, b, c);
+    var a = {
+      b: b, c: c,
+      winsGame: r.winner === me,
+      winsBoard: r.boardWon === me,
+      blocks: blocks,
+      draws: r.over && !r.winner,
+      sendsTo: r.over ? -1 : sim.forced,
+      givesGame: false,
+      oppBoardWins: 0
+    };
+    if (!r.over) {
+      legalMoves(sim).forEach(function (m) {
+        var s2 = cloneState(sim), r2 = play(s2, m.b, m.c);
+        if (r2.winner === opp) a.givesGame = true;
+        else if (r2.boardWon === opp) a.oppBoardWins++;
+      });
+    }
+    return a;
+  }
+  function moveScore(a) {
+    var sc = 0;
+    if (a.winsGame) sc += 10000;
+    if (a.givesGame) sc -= 5000;
+    if (a.winsBoard) sc += 200;
+    if (a.blocks) sc += 120;
+    if (settings.win === 'three') sc -= 45 * a.oppBoardWins;
+    if (a.sendsTo === -1 && !a.winsGame) sc -= 25;       // hands the opponent a free choice
+    if (a.c === 4) sc += 6; else if (a.c % 2 === 0) sc += 3;
+    return sc;
+  }
+  function heuristicMove(s, diff) {
+    var legal = legalMoves(s), noise = DIFF_NOISE[diff] || 20, best = null, bs = -Infinity;
+    legal.forEach(function (m) {
+      var sc = moveScore(analyze(s, m.b, m.c)) + Math.random() * noise;
+      if (sc > bs) { bs = sc; best = m; }
+    });
+    return best;
+  }
+
+  /* ---------- AI Gateway ---------- */
+  function boardsText(s) {
+    var out = ['Big board (state of each small board; "." = still open, D = drawn):'];
+    for (var r = 0; r < 3; r++) out.push('  ' + [0, 1, 2].map(function (c) { return s.boardState[r * 3 + c] || '.'; }).join(' '));
+    out.push('', 'Small boards (index = row*3+col; rows separated by " / "):');
+    for (var b = 0; b < 9; b++) {
+      var st = s.boardState[b] ? (s.boardState[b] === 'D' ? 'drawn' : 'won by ' + s.boardState[b]) : 'open';
+      var rows = [0, 1, 2].map(function (rr) {
+        return [0, 1, 2].map(function (cc) { return s.boards[b][rr * 3 + cc] || '.'; }).join('');
+      });
+      out.push('B' + b + ' [' + st + ']: ' + rows.join(' / '));
+    }
+    return out.join('\n');
+  }
+  function moveId(m) { return m.b + ':' + m.c; }
+
+  function buildMessages(s, diff) {
+    var me = s.current, opp = other(me);
+    var legal = legalMoves(s);
+    var winRule = settings.win === 'one'
+      ? 'The first player to win ANY small board wins the whole game.'
+      : 'A player wins the game by winning three small boards in a row (rows, columns or diagonals of the big board).';
+    var persona = {
+      easy: 'Play like a relaxed beginner: choose a reasonable-looking move quickly without deep analysis. You may overlook threats.',
+      medium: 'Play solid, sensible moves. Always take a winning move, and block the opponent\'s winning move when you can.',
+      hard: 'Play as strongly as you can. Think carefully and silently about the tactical table, take wins, never hand the opponent a win, and prefer moves that leave the opponent only poor options.'
+    }[diff];
+    var sys = [
+      'You are playing Hyper Tic-Tac-Toe (ultimate tic-tac-toe) as ' + me + '.',
+      'Rules: the big board has 9 small boards (index 0-8, reading order). Each small board has 9 cells (index 0-8, reading order).',
+      'If you play cell c of any small board, your opponent must next play on small board c. If that board is already won or full, they may play on any open board.',
+      'You win a small board with three in a row inside it. ' + winRule,
+      persona,
+      'Reply with ONLY one JSON object and nothing else: {"board":<0-8>,"cell":<0-8>,"reason":"<12 words max>"}. The move MUST be one of the legal moves listed.'
+    ].join('\n');
+
+    var parts = [boardsText(s), '',
+      'You are ' + me + '; the opponent is ' + opp + '.',
+      s.forced === -1 ? 'You may play on any open board.' : 'You must play on board ' + s.forced + '.',
+      'Legal moves (board:cell): ' + legal.map(moveId).join(' ')];
+
+    if (diff !== 'easy') {
+      var an = legal.map(function (m) { return analyze(s, m.b, m.c); });
+      if (diff === 'medium') {
+        var wins = an.filter(function (a) { return a.winsGame || a.winsBoard; }).map(moveId);
+        var blocks = an.filter(function (a) { return a.blocks; }).map(moveId);
+        parts.push('', 'Moves that win a small board: ' + (wins.join(' ') || 'none'),
+          'Moves that stop the opponent winning a small board: ' + (blocks.join(' ') || 'none'));
+      } else {
+        parts.push('', 'Tactical analysis of every legal move:');
+        an.forEach(function (a) {
+          var f = [];
+          if (a.winsGame) f.push('WINS THE GAME');
+          else if (a.winsBoard) f.push('wins this small board');
+          if (a.blocks) f.push('blocks an opponent win here');
+          f.push(a.sendsTo === -1 ? (a.winsGame || a.draws ? 'game ends' : 'opponent may play anywhere') : 'sends opponent to board ' + a.sendsTo);
+          if (a.givesGame) f.push('GIVES OPPONENT THE GAME - avoid');
+          else if (a.oppBoardWins) f.push('opponent could win a small board next (' + a.oppBoardWins + ')');
+          parts.push(moveId(a) + ' -> ' + f.join('; '));
+        });
+      }
+    }
+    parts.push('', 'Choose your move now.');
+    return [{ role: 'system', content: sys }, { role: 'user', content: parts.join('\n') }];
+  }
+
+  function parseMove(text, legal) {
+    var obj = null, m = String(text).match(/\{[\s\S]*\}/);
+    if (m) { try { obj = JSON.parse(m[0]); } catch (e) { obj = null; } }
+    var b = NaN, c = NaN, reason = '';
+    if (obj) { b = Number(obj.board); c = Number(obj.cell); reason = String(obj.reason || ''); }
+    else {
+      var mb = String(text).match(/"?board"?\s*[:=]\s*(\d)/i), mc = String(text).match(/"?cell"?\s*[:=]\s*(\d)/i);
+      if (mb && mc) { b = +mb[1]; c = +mc[1]; }
+    }
+    if (!(Number.isInteger(b) && Number.isInteger(c) && b >= 0 && b <= 8 && c >= 0 && c <= 8)) return { ok: false, why: 'it did not contain a valid board and cell' };
+    var ok = legal.some(function (x) { return x.b === b && x.c === c; });
+    return ok ? { ok: true, b: b, c: c, reason: reason.replace(/\s+/g, ' ').trim().slice(0, 140) }
+              : { ok: false, why: 'board ' + b + ' cell ' + c + ' is not in the legal list' };
+  }
+
+  async function callGateway(messages, model, temperature, ctl) {
+    var url = cfg.base.replace(/\/+$/, '') + '/chat/completions';
+    var headers = { 'Content-Type': 'application/json' };
+    if (cfg.key) headers.Authorization = 'Bearer ' + cfg.key;
+    var body = { model: model, messages: messages, max_tokens: 1024, temperature: temperature };
+    var timedOut = false;
+    var timer = setTimeout(function () { timedOut = true; ctl.abort(); }, REQUEST_TIMEOUT_MS);
+    try {
+      var send = function () { return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctl.signal }); };
+      var res = await send();
+      if (res.status === 400 && body.temperature !== undefined) { delete body.temperature; res = await send(); } // some models reject temperature
+      if (!res.ok) {
+        var detail = '';
+        try { var j = await res.json(); detail = (j.error && (j.error.message || j.error)) || ''; } catch (e) { /* not JSON */ }
+        if (res.status === 401 || res.status === 403) throw new Error('the gateway rejected the API key (HTTP ' + res.status + ')');
+        if (res.status === 429) throw new Error('the gateway rate-limited the request (HTTP 429)');
+        throw new Error('gateway error HTTP ' + res.status + (detail ? ': ' + String(detail).slice(0, 120) : ''));
+      }
+      var data = await res.json();
+      var msg = data && data.choices && data.choices[0] && data.choices[0].message;
+      var content = msg && msg.content;
+      if (Array.isArray(content)) content = content.map(function (p) { return p.text || ''; }).join('');
+      if (!content) throw new Error('the model returned an empty reply');
+      return content;
+    } catch (e) {
+      if (e.name === 'AbortError') { var err = new Error(timedOut ? 'the gateway timed out' : 'cancelled'); err.cancelled = !timedOut; throw err; }
+      if (e instanceof TypeError) throw new Error('could not reach the gateway (network error or blocked by CORS; try a proxy Base URL)');
+      throw e;
+    } finally { clearTimeout(timer); }
+  }
+
+  async function chooseAIMove(s, ctl) {
+    var diff = settings.diff, model = cfg.models[diff] || DEFAULT_MODELS[diff];
+    var legal = legalMoves(s), msgs = buildMessages(s, diff), problem = '';
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var text;
+      try { text = await callGateway(msgs, model, DIFF_TEMP[diff], ctl); }
+      catch (e) { if (e.cancelled) throw e; problem = e.message; break; }
+      var mv = parseMove(text, legal);
+      if (mv.ok) return { b: mv.b, c: mv.c, reason: mv.reason, source: 'model', model: model, diff: diff };
+      problem = 'the model suggested an illegal move';
+      msgs = msgs.concat([
+        { role: 'assistant', content: String(text).slice(0, 500) },
+        { role: 'user', content: 'That reply was rejected because ' + mv.why + '. Legal moves (board:cell): ' + legal.map(moveId).join(' ') + '. Reply again with ONLY the JSON object.' }
+      ]);
+    }
+    var fb = heuristicMove(s, diff);
+    return { b: fb.b, c: fb.c, reason: '', source: 'fallback', problem: problem, model: model, diff: diff };
+  }
+
+  function isAITurn() { return settings.opp === 'ai' && !gameOver && S.current === aiSide(); }
+  function humanTurn() { return !gameOver && !aiThinking && !peeking && !isAITurn() && (settings.opp !== 'multi' || (netReady && S.current === localSide)); }
+
+  function cancelAI() {
+    gameToken++;
+    if (aiCtl) { aiCtl.abort(); aiCtl = null; }
+    aiThinking = false;
+  }
+  function maybeAI() {
+    if (!isAITurn() || aiThinking) return;
+    aiThinking = true;
+    var token = gameToken;
+    render();
+    setTimeout(function () { if (token === gameToken) runAI(token); }, 350);
+  }
+  async function runAI(token) {
+    var t0 = Date.now(), res;
+    var ctl = aiCtl = new AbortController();
+    try { res = await chooseAIMove(cloneState(S), ctl); }
+    catch (e) { if (token !== gameToken) return; res = null; }
+    if (token !== gameToken) return;
+    aiCtl = null;
+    if (!res) { // timeout path
+      var fb = heuristicMove(S, settings.diff);
+      res = { b: fb.b, c: fb.c, source: 'fallback', problem: 'the gateway timed out', model: cfg.models[settings.diff], diff: settings.diff };
+    }
+    var secs = ((Date.now() - t0) / 1000).toFixed(1);
+    aiNote = res.source === 'model'
+      ? { warn: false, text: (res.reason ? '\u201C' + res.reason + '\u201D \u00B7 ' : '') + res.model + ' \u00B7 ' + secs + 's' }
+      : { warn: true, text: 'AI Gateway unavailable (' + res.problem + '). Played a built-in fallback move instead.' };
+    aiThinking = false;
+    commitMove(res.b, res.c);
+  }
+
+  /* ---------- game flow ---------- */
+  function reset() {
+    cancelAI();
+    clearTimeout(peekTimer);
+    S = newState();
+    boardLines = []; for (var i = 0; i < 9; i++) boardLines.push(null);
+    bigLine = null; gameOver = false; result = ''; lastMove = null;
+    peeking = false; peeks = { X: PEEKS_PER_PLAYER, O: PEEKS_PER_PLAYER }; aiNote = null;
+    render();
+    maybeAI();
+  }
+
+  function commitMove(b, c, remote) {
+    if (settings.opp === 'multi' && !remote) netSend({ k: 'move', b: b, c: c });
+    var r = play(S, b, c);
+    lastMove = { board: b, cell: c };
+    if (r.boardWon) boardLines[b] = winnerLine(S.boards[b]);
+    if (r.over) {
+      gameOver = true;
+      result = r.winner || 'D';
+      scores[result]++;
+      if (r.winner && settings.win === 'three') bigLine = winnerLine(bigCells(S.boardState));
+    }
+    render();
+    if (!gameOver) maybeAI();
+  }
+
+  function onCellClick(e) {
+    if (!humanTurn()) return;
+    var b = +e.currentTarget.dataset.board, c = +e.currentTarget.dataset.cell;
+    if (S.boards[b][c] || S.boardState[b]) return;
+    if (S.forced !== -1 && b !== S.forced) return;
+    commitMove(b, c);
+  }
+
+  function canPeek() { return settings.mode === 'memory' && humanTurn() && peeks[S.current] > 0; }
+  function peek() {
+    if (!canPeek()) return;
+    peeks[S.current]--;
+    peeking = true;
+    render();
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(function () { peeking = false; render(); }, PEEK_MS);
+  }
+
+  /* ---------- rendering ---------- */
+  function buildDOM() {
+    bigBoardEl.innerHTML = '';
+    for (var b = 0; b < 9; b++) {
+      var sb = document.createElement('div');
+      sb.className = 'small-board';
+      for (var c = 0; c < 9; c++) {
+        var cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cell';
+        cell.dataset.board = b; cell.dataset.cell = c;
+        cell.addEventListener('click', onCellClick);
+        sb.appendChild(cell);
+      }
+      var ov = document.createElement('div'); ov.className = 'overlay'; ov.setAttribute('aria-hidden', 'true');
+      sb.appendChild(ov);
+      bigBoardEl.appendChild(sb);
+    }
+  }
+
+  function pname(p) { return '<span style="color:' + colors[p] + '">' + esc(names[p]) + '</span>'; }
+
+  function render() {
+    var root = document.documentElement.style;
+    root.setProperty('--x', colors.X); root.setProperty('--o', colors.O);
+    bigBoardEl.style.setProperty('--pc', colors[S.current]);
+    var canPlay = humanTurn();
+    var memoryHide = settings.mode === 'memory' && !peeking && !gameOver;
+    var bigIdx = bigLine || [];
+
+    var sbs = bigBoardEl.children;
+    for (var b = 0; b < 9; b++) {
+      var sb = sbs[b];
+      var open = !gameOver && !S.boardState[b] && (S.forced === -1 || b === S.forced);
+      var cls = 'small-board';
+      if (S.boardState[b] === 'X') cls += ' won-x';
+      else if (S.boardState[b] === 'O') cls += ' won-o';
+      else if (S.boardState[b] === 'D') cls += ' dead';
+      else if (open) cls += ' active';
+      if (memoryHide && !open) cls += ' hidden';
+      if (bigIdx.indexOf(b) !== -1) cls += ' line';
+      sb.className = cls;
+      sb.querySelector('.overlay').textContent = S.boardState[b] === 'D' ? '\u2013' : S.boardState[b];
+
+      var cells = sb.querySelectorAll('.cell');
+      var wl = boardLines[b] || [];
+      for (var c = 0; c < 9; c++) {
+        var v = S.boards[b][c];
+        var can = canPlay && open && !v;
+        var el = cells[c];
+        var blindHide = settings.mode === 'blindfold' && !gameOver && !(lastMove && lastMove.board === b && lastMove.cell === c);
+        el.textContent = blindHide ? '' : v;
+        el.className = 'cell' + (v ? ' taken ' + v.toLowerCase() : '') + (can ? ' can' : '') +
+          (wl.indexOf(c) !== -1 ? ' wc' : '') + (lastMove && lastMove.board === b && lastMove.cell === c ? ' last' : '');
+        el.setAttribute('data-p', S.current);
+        el.tabIndex = can ? 0 : -1;
+        el.setAttribute('aria-disabled', can ? 'false' : 'true');
+        el.setAttribute('aria-label', 'Board ' + (b + 1) + ', cell ' + (c + 1) + ': ' + (settings.mode === 'blindfold' && !gameOver ? (can ? 'available' : 'unavailable') : (v || 'empty')));
+      }
+    }
+    bigBoardEl.setAttribute('aria-busy', aiThinking ? 'true' : 'false');
+
+    var note = '';
+    if (gameOver) {
+      note = '<span class="note">Hit Restart to play again.</span>';
+      statusEl.innerHTML = (result !== 'D' ? pname(result) + ' wins the game!' : "It's a draw!") + note;
+    } else if (peeking) {
+      statusEl.innerHTML = 'Peeking at all boards\u2026<span class="note">Memorize them \u2014 they hide again in a moment.</span>';
+    } else if (aiThinking) {
+      statusEl.innerHTML = pname(S.current) + ' is thinking<span class="dots"></span>' +
+        '<span class="note">' + esc(DIFF_LABEL[settings.diff]) + ' \u00B7 ' + esc(cfg.models[settings.diff]) + '</span>';
+    } else {
+      var where = S.forced === -1 ? 'may play on any open board' : 'must play on the highlighted board';
+      statusEl.innerHTML = pname(S.current) + "'s turn (" + S.current + ')' +
+        '<span class="note">' + esc(names[S.current]) + ' ' + where + '.</span>';
+    }
+    if (aiNote && settings.opp === 'ai') {
+      statusEl.innerHTML += '<span class="note' + (aiNote.warn ? ' warn' : '') + '">' + esc(aiNote.text) + '</span>';
+    }
+
+    var ai = settings.opp === 'ai';
+    $('ai-bar').hidden = !ai;
+    if (ai) {
+      setSeg('live-diff', settings.diff);
+      $('ai-meta').textContent = 'Model: ' + cfg.models[settings.diff];
+    }
+    var pk = $('peek');
+    pk.hidden = settings.mode !== 'memory';
+    pk.disabled = !canPeek();
+    pk.textContent = 'Peek (' + (ai ? peeks[settings.side] : peeks[S.current]) + ' left)';
+
+    document.querySelector('#score-x .nm').textContent = names.X;
+    document.querySelector('#score-o .nm').textContent = names.O;
+    document.querySelector('#score-x b').textContent = scores.X;
+    document.querySelector('#score-o b').textContent = scores.O;
+    document.querySelector('#score-d b').textContent = scores.D;
+  }
+
+  function applyAIName() {
+    if (settings.opp === 'ai') names[aiSide()] = 'AI (' + DIFF_LABEL[settings.diff] + ')';
+  }
+
+  /* ---------- LAN multiplayer ---------- */
+  function netStatus(msg) { $('net-status').textContent = msg || ''; }
+  function netSend(d) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t:'relay', d:d })); }
+  function ensureSocket(cb) {
+    if (ws && ws.readyState === WebSocket.OPEN) { cb(); return; }
+    if (ws && ws.readyState === WebSocket.CONNECTING) { ws.addEventListener('open', cb, {once:true}); return; }
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + location.host + '/ws');
+    ws.addEventListener('open', cb, {once:true});
+    ws.addEventListener('message', function (ev) { var m; try { m=JSON.parse(ev.data); } catch(e){return;} onNet(m); });
+    ws.addEventListener('close', function () { if (settings.opp === 'multi') { netReady=false; netStatus('Disconnected from the LAN game server.'); } });
+    ws.addEventListener('error', function () { netStatus('Could not connect. Open this page through hyper-server.js, not as a local file.'); });
+  }
+  function closeNet() { if (ws) { try { ws.close(); } catch(e){} } ws=null; netRole=null; netCode=''; netReady=false; localSide=null; $('room-code').hidden=true; }
+  function hostGame() {
+    ensureSocket(function () { netRole='host'; localSide='X'; netReady=false; var n=$('name-x').value.trim()||'Host'; ws.send(JSON.stringify({t:'host',name:n,label:'Hyper Tic-Tac-Toe'})); netStatus('Creating room…'); });
+  }
+  function joinGame(code) {
+    code=String(code||'').trim().toUpperCase(); if(!code){netStatus('Enter a room code.');return;}
+    ensureSocket(function () { netRole='guest'; localSide='O'; netReady=false; ws.send(JSON.stringify({t:'join',code:code})); netStatus('Joining '+code+'…'); });
+  }
+  function listRooms() { ensureSocket(function(){ ws.send(JSON.stringify({t:'list'})); netStatus('Looking for open games on this server…'); }); }
+  function onNet(m) {
+    if (m.t==='hosted') { netCode=m.code; $('room-code').textContent=m.code; $('room-code').hidden=false; netStatus('Room '+m.code+' is open. Share this code with a friend on the same network.'); }
+    else if (m.t==='joined') { netCode=m.code; netReady=true; $('room-code').textContent=m.code; $('room-code').hidden=false; netStatus('Joined '+m.host+'. Waiting for the host to start.'); netSend({k:'hello',name:$('name-o').value.trim()||'Player 2',color:$('color-o').value}); }
+    else if (m.t==='peer-joined') { netReady=true; netStatus('Friend connected. Choose the rules and press Start Game.'); }
+    else if (m.t==='peer-left') { netReady=false; netStatus('The other player disconnected.'); }
+    else if (m.t==='error') netStatus(m.msg||'Network error.');
+    else if (m.t==='rooms') renderRooms(m.rooms||[]);
+    else if (m.t==='relay') handleRelay(m.d||{});
+  }
+  function renderRooms(rooms) {
+    var el=$('room-list'); el.innerHTML='';
+    if(!rooms.length){netStatus('No open games found on this server.');return;}
+    netStatus(rooms.length+' open game'+(rooms.length===1?'':'s')+' found.');
+    rooms.forEach(function(r){ var row=document.createElement('div'); row.className='room'; var sp=document.createElement('span'); sp.textContent=r.host+' · '+r.code+(r.label?' · '+r.label:''); var b=document.createElement('button'); b.type='button'; b.className='btn'; b.textContent='Join'; b.addEventListener('click',function(){joinGame(r.code);}); row.appendChild(sp); row.appendChild(b); el.appendChild(row); });
+  }
+  function enterRemoteGame(d) {
+    settings.opp='multi'; settings.mode=d.mode==='blindfold'?'blindfold':(d.mode==='memory'?'memory':'classic'); settings.win=d.win==='three'?'three':'one';
+    names.X=d.hostName||'Host'; names.O=d.guestName||$('name-o').value.trim()||'Player 2'; colors.X=d.hostColor||'#4cc2ff'; colors.O=d.guestColor||$('color-o').value;
+    localSide='O'; scores={X:0,O:0,D:0}; $('setup').hidden=true; $('game').hidden=false; $('rules').hidden=false; document.body.classList.add('playing'); reset(); window.scrollTo(0,0);
+  }
+  function handleRelay(d) {
+    if (d.k==='hello' && netRole==='host') { $('name-o').value=d.name||'Player 2'; typed.O=$('name-o').value; if(d.color) $('color-o').value=d.color; netStatus('Friend connected. Choose the rules and press Start Game.'); }
+    else if (d.k==='start' && netRole==='guest') enterRemoteGame(d);
+    else if (d.k==='move' && settings.opp==='multi' && S && S.current!==localSide) { if (legalMoves(S).some(function(m){return m.b===+d.b&&m.c===+d.c;})) commitMove(+d.b,+d.c,true); }
+    else if (d.k==='restart' && settings.opp==='multi') reset();
+  }
+  $('host-game').addEventListener('click',hostGame);
+  $('join-game').addEventListener('click',function(){joinGame($('join-code').value);});
+  $('refresh-rooms').addEventListener('click',listRooms);
+  $('join-code').addEventListener('keydown',function(e){if(e.key==='Enter')joinGame(e.target.value);});
+
+  /* ---------- wiring ---------- */
+  bindSeg('live-diff', function (v) { settings.diff = v; applyAIName(); setSeg('diff-seg', v); render(); });
+
+  $('start').addEventListener('click', function () {
+    var ai = settings.opp === 'ai';
+    if (settings.opp === 'multi') {
+      if (!netReady) { showSetupError('Host or join a LAN game and wait for the other player first.'); return; }
+      if (netRole !== 'host') { showSetupError('The host starts the match and chooses the rules.'); return; }
+    }
+    var nx = ($('name-x').value.trim() || 'Player 1'), no = ($('name-o').value.trim() || 'Player 2');
+    var cx = $('color-x').value, co = $('color-o').value;
+    if (colorDistance(cx, co) < 70) { showSetupError('The two player colors are too similar. Pick colors that are easy to tell apart.'); return; }
+    if (ai) {
+      readGatewayFields();
+      if (!cfg.key && cfg.base === DEFAULT_BASE) {
+        $('gw').open = true;
+        showSetupError('Add your AI Gateway API key under "AI Gateway settings", or set a Base URL for your own proxy.');
+        return;
+      }
+      saveCfg();
+    }
+    showSetupError('');
+    if (settings.opp === 'multi') {
+      localSide = 'X';
+      netSend({ k:'start', mode:settings.mode, win:settings.win, hostName:nx, guestName:no, hostColor:cx, guestColor:co });
+    }
+    if (nx.toLowerCase() === no.toLowerCase()) { nx += ' (X)'; no += ' (O)'; }
+    names.X = nx; names.O = no; colors.X = cx; colors.O = co;
+    applyAIName();
+    scores = { X: 0, O: 0, D: 0 };
+    $('setup').hidden = true;
+    $('game').hidden = false;
+    $('rules').hidden = false;
+    document.body.classList.add('playing');
+    reset();
+    window.scrollTo(0, 0);
+  });
+  $('settings').addEventListener('click', function () {
+    if (settings.opp === 'multi') closeNet();
+    cancelAI();
+    clearTimeout(peekTimer);
+    peeking = false;
+    $('game').hidden = true;
+    $('setup').hidden = false;
+    document.body.classList.remove('playing');
+    syncSetup();
+    window.scrollTo(0, 0);
+  });
+  $('restart').addEventListener('click', function () { if (settings.opp === 'multi') netSend({k:'restart'}); reset(); });
+  $('peek').addEventListener('click', peek);
+  $('reset-score').addEventListener('click', function () { scores = { X: 0, O: 0, D: 0 }; render(); });
+
+  loadCfg();
+  fillGatewayFields();
+  S = newState(); boardLines = []; peeks = { X: 0, O: 0 };
+  syncSetup();
+  buildDOM();
+})();
+</script>
+</body>
+</html>
